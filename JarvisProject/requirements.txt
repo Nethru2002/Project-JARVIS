@@ -1,0 +1,9 @@
+speechrecognition
+pyttsx3
+pyautogui
+ollama
+pyaudio
+opencv-python
+customtkinter
+pillow
+openwakeword
