@@ -8,7 +8,7 @@ class JarvisUI(ctk.CTk):
     def __init__(self, start_callback):
         super().__init__()
 
-        self.title("J.A.R.V.I.S. - Advanced Reactive Virtual Interface System")
+        self.title("J.A.R.V.I.S.")
         self.attributes("-fullscreen", True)
         self.configure(fg_color="#020202") 
         ctk.set_appearance_mode("dark")
@@ -81,7 +81,7 @@ class JarvisUI(ctk.CTk):
                                       fg_color="#050505", text_color="#00fbff", border_color="#007a7a", border_width=1)
         self.console.pack(fill="x")
         
-        self.terminal_log("A.R.C.H.E.R. OS v4.0.0 HYPER-DRIVE SECURE BOOT SUCCESSFUL...")
+        self.terminal_log("J.A.R.V.I.S. HYPER-DRIVE SECURE BOOT SUCCESSFUL...")
 
     def draw_hex_grid(self):
         """Draws a subtle hexagon background pattern behind the reactor"""
