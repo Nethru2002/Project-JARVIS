@@ -16,113 +16,104 @@ from config.settings import PASSCODE, USER_NAME, get_random_status
 is_initialized = False
 
 def get_time_greeting():
-    """Calculates Morning, Afternoon, or Evening based on system clock"""
     hour = int(datetime.datetime.now().hour)
-    if 0 <= hour < 12:
-        return "Good morning"
-    elif 12 <= hour < 18:
-        return "Good afternoon"
-    else:
-        return "Good evening"
+    if 0 <= hour < 12: return "Good morning"
+    elif 12 <= hour < 18: return "Good afternoon"
+    else: return "Good evening"
 
 def jarvis_logic(ui):
-    """Handles the high-level logic in a background thread"""
     global is_initialized
     is_initialized = True
     
-    ui.start_btn.configure(state="disabled", text="SYSTEMS ACTIVE")
-    ui.terminal_log("INITIATING A.R.C.H.E.R. SECURITY PROTOCOLS...")
-    ui.status_label.configure(text="[ SCANNING ]", text_color="#ffcc00")
+    ui.start_btn.configure(state="disabled", text="OS ACTIVE")
+    ui.terminal_log("INITIATING SECURITY PROTOCOLS...")
+    ui.update_status("[ SCANNING ]", "#ffcc00")
     
-    auth_result = verify_user() 
+    auth_result = verify_user()
     is_authorized = False
 
     if auth_result == "Authorized":
         is_authorized = True
-        ui.terminal_log("BIOMETRIC MATCH FOUND. IDENTITY CONFIRMED.")
+        ui.terminal_log("BIOMETRIC MATCH CONFIRMED.")
     else:
-        ui.terminal_log("BIOMETRICS UNRECOGNIZED. CHALLENGING VOCAL PASSCODE...")
-        ui.status_label.configure(text="[ CHALLENGE ]", text_color="#ffcc00")
-        
-        speak(f"Security alert. Biometric verification failed. {USER_NAME}, please provide your override passcode.")
+        ui.terminal_log("BIOMETRICS FAILED. CHALLENGING PASSCODE...")
+        ui.update_status("[ CHALLENGE ]", "#ffcc00")
+        speak(f"Security alert. Biometric scan failed. {USER_NAME}, please provide manual override.")
         
         vocal_input = listen()
         manual_input = ui.pass_entry.get()
 
         if PASSCODE in vocal_input.lower() or manual_input == PASSCODE:
             is_authorized = True
-            ui.terminal_log("MANUAL OVERRIDE ACCEPTED. ACCESS GRANTED.")
-            ui.pass_entry.delete(0, 'end') 
+            ui.terminal_log("OVERRIDE ACCEPTED. IDENTITY VERIFIED.")
+            ui.pass_entry.delete(0, 'end')
         else:
-            ui.terminal_log("CRITICAL ERROR: UNAUTHORIZED ACCESS ATTEMPT.")
-            ui.status_label.configure(text="[ LOCKED ]", text_color="#ff3333")
-            speak("Invalid credentials. System is locking down. Goodbye.")
+            ui.terminal_log("ACCESS DENIED. SYSTEM LOCKED.")
+            ui.update_status("[ LOCKED ]", "#ff3333")
+            speak("Invalid credentials. System is locking down.")
             time.sleep(2)
             sys.exit()
 
     if is_authorized:
-        ui.status_label.configure(text="[ ACTIVE ]", text_color="#00fbff")
+        ui.update_status("[ ACTIVE ]", "#00fbff")
         ui.terminal_log(f"AUTHORIZED USER: {USER_NAME}")
         
-        time_greet = get_time_greeting()
-        status_update = get_random_status()
-        
-        speak(f"{time_greet}, {USER_NAME}. {status_update}")
-        ui.terminal_log("ALL NEURAL NETWORKS ONLINE AND SYNCHRONIZED.")
+        greeting = f"{get_time_greeting()}, {USER_NAME}. {get_random_status()}"
+        speak(greeting)
+        ui.terminal_log("ALL SYSTEMS ONLINE. STANDING BY.")
 
     while True:
-        ui.status_label.configure(text="[ MONITORING ]", text_color="#007a7a")
+        ui.update_status("[ ACTIVE ]", "#00fbff")
         
         if wait_for_wake_word():
-            ui.status_label.configure(text="[ LISTENING ]", text_color="#ff00ff")
+            ui.update_status("[ LISTENING ]", "#ff00ff")
             ui.terminal_log("Wake word detected.")
             
-            speak("Online. What is your command?")
+            speak("Ready.")
             query = listen()
             
-            if not query or query == "":
-                ui.status_label.configure(text="[ ACTIVE ]", text_color="#00fbff")
+            if not query:
                 continue
 
-            ui.terminal_log(f"INPUT: {query}")
-            ui.status_label.configure(text="[ THINKING ]", text_color="#ffff00")
+            ui.terminal_log(f"USER: {query}")
+            ui.update_status("[ PROCESSING ]", "#ffff00")
 
-            if any(k in query for k in ["research", "search", "who is", "tell me about"]):
-                ui.terminal_log("AGENT: Launching web research sequence...")
+            response = ""
+
+            if any(k in query for k in ["research", "search", "who is", "what is"]):
+                ui.terminal_log("AGENT: Launching web research...")
                 topic = query.replace("research", "").replace("search", "").strip()
                 response = research_topic(topic)
             
             elif any(k in query for k in ["look", "see", "identify", "what is this"]):
-                ui.terminal_log("VISION: Analyzing optic feed...")
+                ui.terminal_log("VISION: Analyzing camera feed...")
                 vision_context = capture_and_analyze()
-                ui.terminal_log(f"VISION ANALYTICS: {vision_context}")
+                ui.terminal_log(f"VISION: {vision_context}")
                 response = chat_with_ai(query, vision_context)
             
             else:
-                ui.terminal_log("COGNITION: Processing query...")
+                ui.terminal_log("BRAIN: Processing via Llama...")
                 response = chat_with_ai(query)
 
-            ui.terminal_log(f"JARVIS: {response[:50]}...")
+            ui.terminal_log(f"JARVIS RAW: {response}")
             
-            sys_feedback = execute_command(response)
-            if sys_feedback:
-                speak(sys_feedback)
+            command_feedback = execute_command(response)
+            
+            if command_feedback:
+                ui.terminal_log(f"ACTION: {command_feedback}")
+                speak(command_feedback)
             else:
                 speak(response)
 
-            ui.status_label.configure(text="[ ACTIVE ]", text_color="#00fbff")
-
 def start_program():
-    """Triggered by GUI button. Starts logic thread only once."""
+    """Triggered by HUD button"""
     if not is_initialized:
         logic_thread = threading.Thread(target=jarvis_logic, args=(app,), daemon=True)
         logic_thread.start()
 
 if __name__ == "__main__":
     app = JarvisUI(start_program)
-    
     app.bind("<Escape>", lambda e: sys.exit())
-    
     try:
         app.mainloop()
     except KeyboardInterrupt:

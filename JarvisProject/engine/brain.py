@@ -1,16 +1,17 @@
 import ollama
-from engine.memory import retrieve_memory, store_info
+from config.settings import JARVIS_PROMPT
 
 def chat_with_ai(user_input, visual_context=""):
-    past_memory = retrieve_memory(user_input)
-    
-    if "remember that" in user_input.lower():
-        return store_info(user_input.replace("remember that", ""))
+    system_message = JARVIS_PROMPT
+    if visual_context:
+        system_message += f"\n[VISUAL DATA RECEIVED]: {visual_context}"
 
-    system_prompt = f"You are JARVIS. Context from memory: {past_memory}. Visual Context: {visual_context}"
-    
-    response = ollama.chat(model='llama3.2', messages=[
-        {'role': 'system', 'content': system_prompt},
-        {'role': 'user', 'content': user_input},
-    ])
-    return response['message']['content']
+    try:
+        response = ollama.chat(model='llama3.2', messages=[
+            {'role': 'system', 'content': system_message},
+            {'role': 'user', 'content': user_input},
+        ])
+        raw_text = response['message']['content']
+        return raw_text
+    except Exception as e:
+        return f"Neural link error: {e}"
