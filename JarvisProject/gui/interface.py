@@ -9,7 +9,7 @@ class JarvisUI(ctk.CTk):
     def __init__(self, start_callback):
         super().__init__()
 
-        self.title("J.A.R.V.I.S.")
+        self.title("A.R.C.H.E.R.")
         self.attributes("-fullscreen", True)
         self.configure(fg_color="#000")
         ctk.set_appearance_mode("dark")
@@ -31,9 +31,9 @@ class JarvisUI(ctk.CTk):
         self.canvas.place(relx=0, rely=0, relwidth=1, relheight=1)
         self.w = self.winfo_screenwidth()
         self.h = self.winfo_screenheight()
+        self.draw_hex_grid()
 
     def draw_hex_grid(self):
-        self.canvas.delete("grid")
         s = 60
         v_gap = s * math.sqrt(3)
         for x in range(0, self.w + s, int(s * 1.5)):
@@ -43,23 +43,25 @@ class JarvisUI(ctk.CTk):
                 for i in range(6):
                     a = math.radians(i * 60)
                     pts.append((x + s * math.cos(a), y + offset + s * math.sin(a)))
-                self.canvas.create_polygon(pts, outline="#030303", fill="", width=1, tags="grid")
+                self.canvas.create_polygon(pts, outline="#030303", fill="", width=1)
 
     def draw_radar(self, x, y, r):
+        self.canvas.delete("radar")
         self.canvas.create_oval(x-r, y-r, x+r, y+r, outline="#004444", width=1, tags="radar")
         self.canvas.create_oval(x-r/2, y-r/2, x+r/2, y+r/2, outline="#002222", width=1, tags="radar")
-        sweep_angle = (time.time() * 100) % 360
+        sweep_angle = (time.time() * 80) % 360
         sx = x + r * math.cos(math.radians(sweep_angle))
         sy = y + r * math.sin(math.radians(sweep_angle))
         self.canvas.create_line(x, y, sx, sy, fill=self.theme_color, width=2, tags="radar")
 
     def draw_data_columns(self):
-        self.canvas.delete("data_bits")
-        for i in range(10):
-            rx = random.choice([20, self.w-40])
-            ry = random.randint(100, self.h-100)
-            val = hex(random.randint(1000, 9999)).upper()
-            self.canvas.create_text(rx, ry, text=val, fill="#003333", font=("Consolas", 8), tags="data_bits")
+        if random.random() > 0.8:
+            self.canvas.delete("data_bits")
+            for i in range(8):
+                rx = random.choice([20, self.w-40])
+                ry = random.randint(100, self.h-100)
+                val = hex(random.randint(1000, 9999)).upper()
+                self.canvas.create_text(rx, ry, text=val, fill="#003333", font=("Consolas", 8), tags="data_bits")
 
     def setup_fixed_widgets(self):
         self.side_panel = ctk.CTkFrame(self, fg_color="transparent", width=400)
@@ -85,50 +87,49 @@ class JarvisUI(ctk.CTk):
     def draw_waveform(self):
         self.canvas.delete("wave")
         points = []
-        for x in range(0, self.w, 20):
-            y = (self.h - 50) + math.sin(x*0.02 + time.time()*10) * random.randint(5, 25)
+        for x in range(0, self.w, 40):
+            y = (self.h - 50) + math.sin(x*0.02 + time.time()*8) * 15
             points.extend([x, y])
         self.canvas.create_line(points, fill=self.theme_color, width=2, smooth=True, tags="wave")
 
     def draw_core(self):
         self.canvas.delete("core")
         cx, cy = self.w / 2, self.h / 2
-        self.angle += 2.5
+        self.angle += 2.0
         for i in range(4):
             r = 240 - (i * 45)
-            spd = self.angle * (1 if i%2==0 else -1.5)
+            spd = self.angle * (1 if i%2==0 else -1.2)
             self.canvas.create_arc(cx-r, cy-r, cx+r, cy+r, start=spd, extent=40, outline=self.theme_color, width=2, style="arc", tags="core")
             self.canvas.create_arc(cx-r, cy-r, cx+r, cy+r, start=spd+180, extent=40, outline=self.theme_color, width=2, style="arc", tags="core")
         
-        glow = int((math.sin(time.time()*5)+1)*100 + 50)
+        glow = int((math.sin(time.time()*4)+1)*80 + 40)
         c_glow = f"#00{max(0,min(255,glow)):02x}{max(0,min(255,glow)):02x}"
         self.canvas.create_oval(cx-60, cy-60, cx+60, cy+60, fill=c_glow, outline="", tags="core")
 
     def run_engine(self):
-        self.draw_hex_grid()
         self.draw_core()
         self.draw_waveform()
         self.draw_radar(150, 150, 80)
         self.draw_data_columns()
         
-        self.canvas.delete("gauges")
-        cpu = psutil.cpu_percent()
-        ram = psutil.virtual_memory().percent
-        disk = psutil.disk_usage('/').percent
-        net = random.randint(10, 45) # Latency sim
-        
-        self.draw_gauge(150, 350, 50, cpu, "CPU", self.theme_color)
-        self.draw_gauge(150, 500, 50, ram, "RAM", self.sec_color)
-        self.draw_gauge(150, 650, 50, disk, "DISK", "#ff0055")
-        self.draw_gauge(150, 800, 50, net, "NET", "#ffff00")
+        if int(time.time() * 2) % 2 == 0:
+            self.canvas.delete("gauges")
+            cpu = psutil.cpu_percent()
+            ram = psutil.virtual_memory().percent
+            disk = psutil.disk_usage('/').percent
+            net = random.randint(12, 38)
+            
+            self.draw_gauge(150, 350, 50, cpu, "CPU", self.theme_color)
+            self.draw_gauge(150, 500, 50, ram, "RAM", self.sec_color)
+            self.draw_gauge(150, 650, 50, disk, "DISK", "#ff0055")
+            self.draw_gauge(150, 800, 50, net, "LAT", "#ffff00")
 
-        # Info Overlays
+        self.canvas.delete("info")
         now = datetime.datetime.now()
-        self.canvas.create_text(self.w/2, 40, text=now.strftime("%H:%M:%S"), fill=self.theme_color, font=("Orbitron", 30, "bold"), tags="core")
-        self.canvas.create_text(self.w/2, 80, text=f"UPTIME: {int(time.time()-self.start_time)}s", fill="#004444", font=("Consolas", 12), tags="core")
-        self.canvas.create_text(self.w-200, 40, text="SATELLITE: CONNECTED", fill="#00ff00" if random.random()>0.1 else "#ff0000", font=("Consolas", 10), tags="core")
-
-        self.after(35, self.run_engine)
+        self.canvas.create_text(self.w/2, 40, text=now.strftime("%H:%M:%S"), fill=self.theme_color, font=("Orbitron", 30, "bold"), tags="info")
+        self.canvas.create_text(self.w/2, 80, text=f"UPTIME: {int(time.time()-self.start_time)}S", fill="#004444", font=("Consolas", 12), tags="info")
+        
+        self.after(60, self.run_engine)
 
     def terminal_log(self, msg):
         ts = datetime.datetime.now().strftime("%H:%M:%S")
@@ -140,3 +141,10 @@ class JarvisUI(ctk.CTk):
         self.status_lbl.configure(text=text, text_color=color)
         self.theme_color = color
         self.terminal_box.configure(border_color=color)
+        self.pass_entry.configure(border_color=color)
+        self.start_btn.configure(fg_color=color)
+
+if __name__ == "__main__":
+    app = JarvisUI(lambda: print("Nexus Init"))
+    app.bind("<Escape>", lambda e: app.destroy())
+    app.mainloop()
