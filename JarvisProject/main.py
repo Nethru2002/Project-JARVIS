@@ -1,8 +1,6 @@
 import threading
 import sys
-import datetime
 import time
-
 from engine.speech import speak, listen, choose_best_microphone
 from engine.brain import chat_with_ai
 from engine.actions import execute_command
@@ -14,98 +12,58 @@ from gui.interface import JarvisUI
 from config.settings import PASSCODE, USER_NAME, get_random_status
 
 is_initialized = False
-chat_history = []
-
-def get_time_greeting():
-    hour = datetime.datetime.now().hour
-    if hour < 12: return "Good morning"
-    if hour < 18: return "Good afternoon"
-    return "Good evening"
 
 def jarvis_logic(ui):
     global is_initialized
     is_initialized = True
     
-    ui.start_btn.configure(state="disabled", text="NEXUS ACTIVE")
-    ui.terminal_log("SCANNING HARDWARE TOPOLOGY...")
+    ui.start_btn.configure(state="disabled", text="ONLINE")
+    ui.terminal_log("LOADING GALAXY HUD CORE...")
     
     best_mic = choose_best_microphone()
-    ui.terminal_log(f"PRIMARY INPUT SECURED ON DEVICE {best_mic}")
+    ui.terminal_log(f"HARDWARE: MIC {best_mic} ACTIVE")
     
     ui.update_status("[ SCANNING ]", "#ffcc00")
-    auth_result = verify_user()
-    is_authorized = False
-
-    if auth_result == "Authorized":
-        is_authorized = True
-    else:
+    if verify_user() != "Authorized":
         ui.update_status("[ CHALLENGE ]", "#ffcc00")
-        speak(f"Biometric mismatch. {USER_NAME}, initiate manual override.")
-        
+        speak("Biometric failure. Passcode required.")
         vocal_input = listen()
-        manual_input = ui.pass_entry.get()
-
-        if PASSCODE in vocal_input.lower() or manual_input == PASSCODE:
-            is_authorized = True
-            ui.pass_entry.delete(0, 'end')
+        if PASSCODE in vocal_input.lower() or ui.pass_entry.get() == PASSCODE:
+            ui.terminal_log("MANUAL OVERRIDE ACCEPTED.")
         else:
-            ui.update_status("[ LOCKED ]", "#ff3333")
-            speak("Security violation. Critical shutdown.")
-            time.sleep(2)
+            ui.update_status("[ LOCKED ]", "#ff0055")
+            speak("Access denied.")
             sys.exit()
 
-    if is_authorized:
-        ui.update_status("[ ACTIVE ]", "#00fbff")
-        ui.terminal_log(f"IDENTITY VERIFIED: {USER_NAME}")
-        
-        greeting = f"{get_time_greeting()}, {USER_NAME}. {get_random_status()}"
-        speak(greeting)
+    ui.update_status("[ ACTIVE ]", "#00fbff")
+    speak(f"Hello {USER_NAME}. {get_random_status()}")
 
     while True:
-        ui.update_status("[ MONITORING ]", "#007a7a")
-        
+        ui.update_status("[ ACTIVE ]", "#00fbff")
         if wait_for_wake_word():
             ui.update_status("[ LISTENING ]", "#ff00ff")
-            speak("Online.")
-            
+            speak("Ready.")
             query = listen()
-            if not query or len(query) < 2:
-                continue
+            if not query: continue
 
             ui.terminal_log(f"USER: {query}")
-            ui.update_status("[ THINKING ]", "#ffff00")
+            ui.update_status("[ PROCESSING ]", "#5e17eb")
 
-            global chat_history
-            chat_history.append(f"User: {query}")
-            context = "\n".join(chat_history[-10:])
-
-            if any(k in query for k in ["research", "search", "who is"]):
+            if "research" in query:
                 response = research_topic(query)
-            elif any(k in query for k in ["look", "see", "identify"]):
+            elif "look" in query or "see" in query:
                 response = chat_with_ai(query, capture_and_analyze())
             else:
-                response = chat_with_ai(context)
+                response = chat_with_ai(query)
 
-            ui.terminal_log(f"AI: {response[:65]}...")
-            
             action_feedback = execute_command(response)
-            
             if action_feedback:
+                ui.terminal_log(f"CMD: {action_feedback}")
                 speak(action_feedback)
             else:
                 speak(response)
 
-            chat_history.append(f"Jarvis: {response}")
-            ui.update_status("[ ACTIVE ]", "#00fbff")
-
-def start_threads():
-    if not is_initialized:
-        threading.Thread(target=jarvis_logic, args=(app,), daemon=True).start()
-
 if __name__ == "__main__":
-    app = JarvisUI(start_threads)
+    app = JarvisUI(lambda: threading.Thread(target=jarvis_logic, args=(app,), daemon=True).start())
     app.bind("<Escape>", lambda e: sys.exit())
-    try:
-        app.mainloop()
-    except KeyboardInterrupt:
-        sys.exit()
+    app.mainloop()
