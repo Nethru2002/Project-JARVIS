@@ -1,20 +1,21 @@
-import chromadb
-import uuid
+import json
+import os
 
-client = chromadb.PersistentClient(path="./jarvis_memory")
-collection = client.get_or_create_collection(name="user_data")
+MEMORY_FILE = "user_memory.json"
 
-def store_info(text):
-    """Store information into Jarvis's long-term memory"""
-    collection.add(
-        documents=[text],
-        ids=[str(uuid.uuid4())]
-    )
-    return "Sir, I've committed that to my memory."
+def save_memory(fact_key, fact_val):
+    memory = load_all_memory()
+    memory[fact_key] = fact_val
+    with open(MEMORY_FILE, "w") as f:
+        json.dump(memory, f)
 
-def retrieve_memory(query):
-    """Search memory for relevant context"""
-    results = collection.query(query_texts=[query], n_results=1)
-    if results['documents'][0]:
-        return f"Relevant Memory: {results['documents'][0][0]}"
-    return ""
+def load_all_memory():
+    if not os.path.exists(MEMORY_FILE):
+        return {}
+    with open(MEMORY_FILE, "r") as f:
+        return json.load(f)
+
+def get_memory_string():
+    mem = load_all_memory()
+    if not mem: return ""
+    return "User Facts: " + ", ".join([f"{k} is {v}" for k, v in mem.items()])

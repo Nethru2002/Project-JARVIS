@@ -1,19 +1,32 @@
-import speech_recognition as sr
+import os
+import json
+import pyaudio
+from vosk import Model, KaldiRecognizer
+
+if not os.path.exists("model"):
+    print("Please download the Vosk model and rename the folder to 'model'.")
+    exit()
+
+model = Model("model")
+rec = KaldiRecognizer(model, 16000, '["jarvis", "hey", "system", "[unk]"]')
 
 def wait_for_wake_word():
-    r = sr.Recognizer()
-    r.energy_threshold = 200 
-    r.dynamic_energy_threshold = True
+    p = pyaudio.PyAudio()
+    stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
+    stream.start_stream()
 
-    with sr.Microphone() as source:
-        r.adjust_for_ambient_noise(source, duration=0.3)
-        try:
-            audio = r.listen(source, timeout=None, phrase_time_limit=3)
-            text = r.recognize_google(audio).lower()
-            print(f"DEBUG: Heard '{text}'")
-            
-            if "jarvis" in text or "hey" in text or "system" in text:
+    print(">>> A.R.C.H.E.R. is monitoring the room...")
+
+    while True:
+        data = stream.read(4000, exception_on_overflow=False)
+        if len(data) == 0:
+            break
+        if rec.AcceptWaveform(data):
+            result = json.loads(rec.Result())
+            text = result.get("text", "")
+            if "jarvis" in text or "hey" in text:
+                stream.stop_stream()
+                stream.close()
+                p.terminate()
                 return True
-        except:
-            return False
     return False
